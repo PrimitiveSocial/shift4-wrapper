@@ -1,0 +1,43 @@
+{
+    "name": "primitivesocial/shift4wrapper",
+    "description": ":description",
+    "license": "license",
+    "authors": [
+        {
+            "name": "Primitive Social",
+            "email": "hello@primitivesocial.com",
+            "homepage": "https://primitivesocial.com"
+        }
+    ],
+    "homepage": "https://github.com/primitivesocial/shift4wrapper",
+    "keywords": ["Laravel", "Shift4Wrapper"],
+    "require": {
+        "illuminate/support": "~5"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "~7.0",
+        "mockery/mockery": "^1.1",
+        "orchestra/testbench": "~3.0",
+        "sempro/phpunit-pretty-print": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PrimitiveSocial\\Shift4Wrapper\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PrimitiveSocial\\Shift4Wrapper\\Tests\\": "tests"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PrimitiveSocial\\Shift4Wrapper\\Shift4WrapperServiceProvider"
+            ],
+            "aliases": {
+                "Shift4Wrapper": "PrimitiveSocial\\Shift4Wrapper\\Facades\\Shift4Wrapper"
+            }
+        }
+    }
+}
