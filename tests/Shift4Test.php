@@ -100,7 +100,7 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		$transaction->tax(11.14)
 				->total(111.45)
-				->clerk('24')
+				->clerk('1')
 				// ->addressLine1('65 Main Street')
 				->invoiceNumber($randomInvoice)
 				->tokenValue($tokenizer->getToken())
@@ -116,6 +116,7 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		// Set transaction
 		$_SESSION['transaction'] = $output['result'][0]['transaction']['invoice'];
+		$_SESSION['invoiceForTest5'] = $randomInvoice;
 		$_SESSION['tokenForTest5'] = $tokenizer->getToken();
 
 	}
@@ -143,8 +144,12 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 			$transaction->total(111.61)
 					->tokenValue($tokenizer->getToken())
+					->clerk('1')
 					->invoiceNumber($randomInvoice)
 					->sale();
+
+			// Test that we got here
+			$this->assertTrue(true);
 
 		} catch (\PrimitiveSocial\Shift4Wrapper\Shift4WrapperException $e) {
 
@@ -156,22 +161,12 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 						->invoice();
 			} catch (\PrimitiveSocial\Shift4Wrapper\Shift4WrapperException $e) {
 
+				// Test that we got here
 				$this->assertTrue(true);
 
 			}
 
 		}
-
-	}
-
-	public function testInvoiceTimeout() {
-
-		$this->expectException(\PrimitiveSocial\Shift4Wrapper\Shift4WrapperException::class);
-
-		$transaction = new Transaction($_SESSION['accessToken']);
-
-		$transaction->total(200.00)
-				->invoice();
 
 	}
 
@@ -194,7 +189,7 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		$transaction->total(200.00)
 				->tokenValue($tokenizer->getToken())
-				->invoiceNumber($_SESSION['transaction'])
+				->invoiceNumber($_SESSION['invoiceForTest5'])
 				->clerk('5188')
 				->firstName('John')
 				->lastName('Smith')
