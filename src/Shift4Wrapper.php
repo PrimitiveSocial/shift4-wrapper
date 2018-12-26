@@ -56,6 +56,10 @@ class Shift4Wrapper
 
 	protected $callMethod = 'POST';
 
+	protected $companyName;
+
+	protected $interfaceName;
+
 	protected $versionUri = 'api/rest/v1/';
 
 	protected $errorindicator = FALSE;
@@ -67,19 +71,27 @@ class Shift4Wrapper
 	public function __construct($accessToken = null, $clientUrl = null, $clientGuid = null, $clientAuthToken = null, $additionalHeaders = array()) {
 
 		// Set Client URL
-		$this->clientUrl = $clientUrl ?: config('shift4.api_url');
+		$this->clientUrl = $clientUrl ?: config('shift4wrapper.api_url');
 
 		if(!$this->clientUrl || !$this->isValid('clientUrl', $this->clientUrl)) throw Shift4WrapperException::noApiUrl();
 
 		// Set Client GUID
-		$this->clientGuid = $clientGuid ?: config('shift4.guid');
+		$this->clientGuid = $clientGuid ?: config('shift4wrapper.guid');
 
 		if(!$this->clientGuid || !$this->isValid('clientGuid', $this->clientGuid)) throw Shift4WrapperException::noGuid();
 
 		// Set Client Auth Token
-		$this->clientAuthToken = $clientAuthToken ?: config('shift4.auth_token');
+		$this->clientAuthToken = $clientAuthToken ?: config('shift4wrapper.auth_token');
 
 		if(!$this->clientAuthToken || !$this->isValid('clientAuthToken', $this->clientAuthToken)) throw Shift4WrapperException::noAuthToken();
+
+		$this->companyName = config('shift4wrapper.company_name');
+
+		if(!$this->companyName) throw Shift4WrapperException::noCompanyName();
+
+		$this->interfaceName = config('shift4wrapper.company_name');
+
+		if(!$this->interfaceName) throw Shift4WrapperException::noInterfaceName();
 
 		// Get Access Token
 		$this->accessToken = $accessToken ?: $this->login();
@@ -102,8 +114,8 @@ class Shift4Wrapper
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> 'Madera Resident Portal',
-				'CompanyName' 		=> 'Madera Residential',
+				'InterfaceName' 	=> $this->interfaceName,
+				'CompanyName' 		=> $this->companyName,
 				'AccessToken'		=> $this->accessToken,
 
 			)
@@ -125,13 +137,13 @@ class Shift4Wrapper
 		// Set up Guzzle client
 		$client = new Client(array(
 			'base_uri' => $this->clientUrl,
-			// 'cert' => base_path() . '/shift4.pem',
+			// 'cert' => base_path() . '/shift4wrapper.pem',
 			'headers' => array(
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> 'Madera Resident Portal',
-				'CompanyName' 		=> 'Primitive Social'
+				'InterfaceName' 	=> $this->interfaceName,
+				'CompanyName' 		=> $this->companyName
 			)
 		));
 

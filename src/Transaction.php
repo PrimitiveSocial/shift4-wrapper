@@ -58,8 +58,8 @@ class Transaction extends Shift4Wrapper
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> 'Madera Resident Portal',
-				'CompanyName' 		=> 'Primitive Social',
+				'InterfaceName' 	=> $this->interfaceName,
+				'CompanyName' 		=> $this->companyName,
 				'AccessToken'		=> $this->accessToken,
 				'Invoice'			=> $invoice
 			)
@@ -101,8 +101,8 @@ class Transaction extends Shift4Wrapper
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> 'Madera Resident Portal',
-				'CompanyName' 		=> 'Primitive Social',
+				'InterfaceName' 	=> $this->interfaceName,
+				'CompanyName' 		=> $this->companyName,
 				'AccessToken'		=> $this->accessToken,
 				'Invoice'			=> $invoice
 			)

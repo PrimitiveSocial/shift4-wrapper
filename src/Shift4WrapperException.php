@@ -22,6 +22,18 @@ class Shift4WrapperException extends \Exception {
 
 	}
 
+	public static function noCompanyName() {
+
+		return new self("A Company Name is required.");
+
+	}
+
+	public static function noInterfaceName() {
+
+		return new self("An Interface Name is required.");
+
+	}
+
 	public static function guzzleError($error, $request, $body, $url) {
 
 		return new self(
