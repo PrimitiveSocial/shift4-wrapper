@@ -1,12 +1,19 @@
 <?php
 
+namespace Tests\Feature;
+
 if ( !isset( $_SESSION ) ) $_SESSION = array();
 
+use Tests\TestCase;
+use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PrimitiveSocial\Shift4Wrapper\Shift4Wrapper;
 use PrimitiveSocial\Shift4Wrapper\Token;
 use PrimitiveSocial\Shift4Wrapper\Transaction;
+use Illuminate\Support\Facades\Log;
+use App\Shift4Token;
 
-class Shift4Test extends PHPUnit_Framework_TestCase
+class Shift4Test extends TestCase
 {
 
 	protected $backupGlobalsBlacklist = array( '_SESSION' );
@@ -23,11 +30,25 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		$client = new Shift4Wrapper();
 
-		$client->login();
-
-		$_SESSION['accessToken'] = $client->accessToken;
-
 		$this->assertNotNull($client->accessToken);
+
+		$token = Shift4Token::first();
+
+		if(!$token) {
+
+			$token = new Shift4Token();
+
+			$client->login();
+
+		}
+
+		$token->token = $client->accessToken;
+
+		$token->save();
+
+		$_SESSION['accessToken'] = $token->token;
+
+		$this->assertNotNull($token);
 
 	}
 
@@ -72,6 +93,17 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		$output = $client->output();
 
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 1: ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $client->request(),
+					'Output' => $output
+				)
+			)
+		);
+
 		// Set card value to preserve through tests
 		$_SESSION['token'] = $client->getToken();
 
@@ -101,16 +133,27 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 		$transaction->tax(11.14)
 				->total(111.45)
 				->clerk('1')
-				// ->addressLine1('65 Main Street')
 				->invoiceNumber($randomInvoice)
 				->tokenValue($tokenizer->getToken())
-				->firstName('John')
-				->lastName('Smith')
-				->postalCode('65000')
-				->addressLine1('65 Main Street')
+				->purchaseCard(array(
+					'customerReference' => 412348,
+					'destinationPostalCode' => 19134,
+					'productDescriptors' => array('rent')
+				))
 				->sale();
 
 		$output = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 2: ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $output
+				)
+			)
+		);
 
 		$this->assertNotNull($output['result'][0]['transaction']);
 
@@ -145,23 +188,32 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 			$transaction->total(111.61)
 					->tokenValue($tokenizer->getToken())
 					->clerk('1')
+					// ->firstName('John')
+					// ->lastName('Smith')
+					// ->postalCode('65000')
+					// ->addressLine1('65 Main Street')
 					->invoiceNumber($randomInvoice)
 					->sale();
 
-			// Test that we got here
-			$this->assertTrue(true);
-
 		} catch (\PrimitiveSocial\Shift4Wrapper\Shift4WrapperException $e) {
+
+			Log::debug('SHIFT 4 TEST 3:' . __FUNCTION__);
+			Log::debug($e->getMessage());
+			Log::debug(json_encode($transaction->error()));
+			$this->assertTrue(true);
 
 			// Then Invoice Timeout
 			try {
+
 				$transaction = new Transaction($_SESSION['accessToken']);
 
-				$transaction->invoiceNumber($randomInvoice)
-						->invoice();
+				$transaction->invoice($randomInvoice);
+
 			} catch (\PrimitiveSocial\Shift4Wrapper\Shift4WrapperException $e) {
 
-				// Test that we got here
+				Log::debug('SHIFT 4 TEST 3: ' . __FUNCTION__ . ': INVOICE CALL');
+				Log::debug(json_encode($transaction->error()));
+
 				$this->assertTrue(true);
 
 			}
@@ -171,6 +223,8 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 	}
 
 	public function testRefund() {
+
+		$randomInvoice = rand();
 
 		$tokenizer = new Token($_SESSION['accessToken']);
 
@@ -189,15 +243,23 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		$transaction->total(200.00)
 				->tokenValue($tokenizer->getToken())
-				->invoiceNumber($_SESSION['invoiceForTest5'])
+				->invoiceNumber($randomInvoice)
 				->clerk('5188')
-				->firstName('John')
-				->lastName('Smith')
-				->postalCode('89144')
-				->addressLine1('123 Easy St')
 				->refund();
 
 		$result = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 4:' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $result
+				)
+			)
+		);
+
 
 		$this->assertNotNull($result['result'][0]['transaction']['invoice']);
 
@@ -205,14 +267,68 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 	public function testDeleteInvoice() {
 
-		// Deleting an invoice requires the transaction be sent in the header
-		$transaction = new Transaction($_SESSION['accessToken'], null, null, null, array('Invoice' => '12345'));
+		// First get the token and card to delete
+		$randomInvoice = rand();
 
-		$transaction->deleteInvoice('12345');
+		$tokenizer = new Token($_SESSION['accessToken']);
+
+		$tokenizer->ip('173.49.87.94')
+				->expirationMonth(12)
+				->expirationYear(30)
+				->cardNumber('4321000000001119')
+				->cvv('333')
+				->cardType('VS')
+				->name('John Smith')
+				->zip('65000')
+				->address('65 Main Street')
+				->post();
+
+		$transaction = new Transaction($_SESSION['accessToken']);
+
+		$transaction->total(100)
+				->clerk('1')
+				->invoiceNumber($randomInvoice)
+				->tokenValue($tokenizer->getToken())
+				->purchaseCard(array(
+					'customerReference' => 412348,
+					'destinationPostalCode' => 19134,
+					'productDescriptors' => array('rent')
+				))
+				->sale();
+
+		$output = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 5: ' . __FUNCTION__ . ': CARD AND TRANSACTION CREATION');
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $output
+				)
+			)
+		);
+
+		// Deleting an invoice requires the transaction be sent in the header
+		$transaction = new Transaction($_SESSION['accessToken']);
+
+		$transaction->deleteInvoice($randomInvoice);
 
 		$result = $transaction->output();
 
 		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 5: ' . __FUNCTION__);
+		Log::debug('SHIFT 4 TEST 5: ' . __FUNCTION__ . ' INVOICE: ' . $_SESSION['invoiceForTest5']);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $result
+				)
+			)
+		);
+
+
 		$this->assertNotNull($result);
 
 	}
@@ -245,10 +361,10 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 				->tokenValue($tokenizer->getToken())
 				->invoiceNumber($randomInvoice)
 				->clerk(1)
-				->firstName('John')
-				->lastName('Smith')
-				->postalCode('65000')
-				->addressLine1('65 Main Street')
+				// ->firstName('John')
+				// ->lastName('Smith')
+				// ->postalCode('65000')
+				// ->addressLine1('65 Main Street')
 				->sale();
 
 		$result1 = $transaction->output();
@@ -276,15 +392,23 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 		$transaction->entryMode('M')
 				->tokenValue($tokenizer->getToken())
 				->total($newAmount)
-				->invoiceNumber($randomInvoice)
+				->invoiceNumber($randomInvoice + 1)
 				->clerk(1)
-				->firstName('John')
-				->lastName('Smith')
-				->postalCode('65000')
-				->addressLine1('65 Main Street')
+				// ->firstName('John')
+				// ->lastName('Smith')
+				// ->postalCode('65000')
+				// ->addressLine1('65 Main Street')
 				->sale();
 
 		$result2 = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 6: ' . __FUNCTION__);
+		Log::debug(json_encode($result1));
+		Log::debug(json_encode($result2));
+		Log::debug('STARTING AMOUNT: ' . $startingAmount);
+		Log::debug('INITIAL AUTH AMOUNT: ' . (float) $result1['result'][0]['amount']['total']);
+		Log::debug('SECOND INVOICE SENDS: ' . $newAmount);
 
 		$this->assertNotNull($result2['result'][0]['transaction']);
 
@@ -312,16 +436,27 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 		// First sale will be partial
 		$transaction->total($startingAmount)
 				->tokenValue($tokenizer->getToken())
-				->firstName('John')
-				->lastName('Smith')
+				// ->firstName('John')
+				// ->lastName('Smith')
 				->clerk('1')
 				->invoiceNumber('34567123')
-				->postalCode('65000')
-				->addressLine1('65 Main Street')
+				// ->postalCode('65000')
+				// ->addressLine1('65 Main Street')
 				->sale();
 
 		$result = $transaction->output();
 		
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 7: ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $result
+				)
+			)
+		);
+
 		$amountAuthorized = $result['result'][0]['amount']['total'];
 
 		$invoice = $result['result'][0]['transaction']['invoice'];
@@ -333,6 +468,10 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 		$transaction->deleteInvoice('34567123');
 
 		$result = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 7: ' . __FUNCTION__);
+		Log::debug(json_encode($result));
 
 		$this->assertNotNull($result);
 
@@ -362,13 +501,25 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 				// ->number('4321000000001119')
 				->invoiceNumber('45678')
 				// ->securityCode('333')
-				->firstName('John')
-				->lastName('Smith')
-				->postalCode('89144')
-				->addressLine1('123 Easy St')
+				// ->firstName('John')
+				// ->lastName('Smith')
+				// ->postalCode('89144')
+				// ->addressLine1('123 Easy St')
 				->sale();
 
 		$output = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 8: ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $output
+				)
+			)
+		);
+
 
 		$this->assertNotNull($output['result'][0]['transaction']['invoice']);
 
@@ -377,14 +528,26 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		$transaction->total(200)
 				->tokenValue($this->getToken())
-				->firstName('John')
+				// ->firstName('John')
 				->invoiceNumber('45678')
-				->lastName('Smith')
-				->postalCode('89144')
-				->addressLine1('123 Easy St')
+				// ->lastName('Smith')
+				// ->postalCode('89144')
+				// ->addressLine1('123 Easy St')
 				->sale();
 
 		$output = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $output
+				)
+			)
+		);
+
 
 		$this->assertNotNull($output['result'][0]['transaction']['invoice']);
 
@@ -410,6 +573,18 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 
 		$result = $transaction->output();
 
+		// Laravel Logging
+		Log::debug('SHIFT 4 TEST 9: ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $result
+				)
+			)
+		);
+
+
 		$this->assertNotNull($result['result'][0]['transaction']['invoice']);
 
 	}
@@ -432,6 +607,18 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 				->sale();
 
 		$result = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $result
+				)
+			)
+		);
+
 
 		$this->assertNotNull($transaction->error());
 
@@ -457,6 +644,18 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 				->sale();
 
 		$result = $transaction->output();
+
+		// Laravel Logging
+		Log::debug('SHIFT 4 ' . __FUNCTION__);
+		Log::debug(
+			json_encode(
+				array(
+					'Request' => $transaction->request(),
+					'Output' => $result
+				)
+			)
+		);
+
 
 		$this->assertEquals('f', strtolower($result['result'][0]['transaction']['responseCode']));
 
@@ -519,68 +718,6 @@ class Shift4Test extends PHPUnit_Framework_TestCase
 				->postalCode('65000')
 				->addressLine1('65 Main Street')
 				->sale();
-
-	}
-
-	public function testPikaPika() {
-
-		$pika = <<<PIKA
-
-        ,@@@@@@@@@@,,@@@@@@@%  .#&@@@&&.,@@@@@@@@@@,      %@@@@@@%*   ,@@@%     .#&@@@&&.  *&@@@@&(  ,@@@@@@@%  %@@@@@,     ,@@,          
-            ,@@,    ,@@,      ,@@/   ./.    ,@@,          %@%   ,&@# .&@&@@(   .@@/   ./. #@&.  .,/  ,@@,       %@%  *&@&.  ,@@,          
-            ,@@,    ,@@&%%%%. .&@@/,        ,@@,          %@%   ,&@# %@& /@@,  .&@@/,     (@@&%(*.   ,@@&%%%%.  %@%    &@#  ,@@,          
-            ,@@,    ,@@/,,,,    ./#&@@@(    ,@@,          %@@@@@@%* /@@,  #@&.   ./#&@@@(   *(%&@@&. ,@@/,,,,   %@%    &@#  .&&.          
-            ,@@,    ,@@,      ./,   .&@#    ,@@,          %@%      ,@@@@@@@@@% ./.   .&@# /*.   /@@. ,@@,       %@%  *&@&.   ,,           
-            ,@@,    ,@@@@@@@% .#&@@@@&/     ,@@,          %@%     .&@#     ,@@/.#&@@@@&/   /%&@@@@.  ,@@@@@@@%  %@@@@@.     ,@@,          
-,*************,,*/(((((//,,*(#%%%%%%%%%%%%%%%#(*,,,****************************************************,*/(((((((((/((((////****/((##%%%%%%
-,*************,,//((((((//,,*(%%%%%%%%%%%%%%%%%##/*****************************************************,,*/(///(//////****//((##%%%%%%%%%%%
-,************,,*/(((((((//***/#%%%%%%%%%%%%%%%%%%%#(/***************************************************,*//////////*//((#%%%%%%%%%%%%%%%%%
-,***********,,*////////////***/##%%%%%%%%%%%%%%%%%%%##(*,***********************************************,,*////////(###%%%%%%%%%%%%%%%%%%%%
-,**********,,,*/*******//////**/(#%%%%%%%%%%%%%%%%%%%%%#(/**********************************************,,,***/(##%%%%%%%%%%%%%%%%%%%%%%%%%
-,*********,,,,*************///***/(#%%%%%%%%%%%%%%%%%%%%%%#(/***********************************,****,****/((#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
-,*********,,,***************//****/(##%%%%%%%%%%%%%%%%%%%%%%##//**************//////////////////////((#####%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(
-,********,,,,***********************/(#%%%%%%%%%%%%%%%%%%%%%%%##################%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##(/
-,*******,..,***********************,,*/##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%###((//
-,*******,.,,***********************,,,,*(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##(//**//
-,******,.,,,************************,,,,*/(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(//*******
-,*****,,,,,********,***,,,,,,,,,,,,*,,,,,,*/(######%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##(/**********
-,*****,..,*******,,,,,,,,,,,,,,,,,,,,,,*,,,,*///((#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%###(/************
-,*****,,,*******,,,,,*,,,,,,,,,,,,,,,,,****,,,*/(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#######(//**************
-,****,.,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,**,,,/(%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#((//******************
-,***,..,,,,,,,,,,,,,,,,,,,,,,,,,,,,,..,,,,,,,*(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(/*******************
-,**,,.,,,,,,,,,,,,,,,,,,,,,,,,,,.......,,,,,,/#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#####%%%%%%%%%%%%%%%%#(/******************
-,**,..,,,,,,,,,,,,,,,,,,,,,,,,,......,,,*,,,*(#%%%%%%%%##(((/(##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##(((/*/((#%%%%%%%%%%%%%%#(/*****************
-,*,..,,,,,,,,,,,,,,,,,,,,,,,,,,,.....,,**,,*/#%%%%%%%##((((*,**/#%%%%%%%%%%%%%%%%%%%%%%%%%%%%##((##/,,,*(#%%%%%%%%%%%%%%#(*****************
-.*,.,,,**,,,,,,,,,,,,,,,,,,,,,,,,,,*****,,,/(%%%%%%%%#(//(#/,..*/#%%%%%%%%%%%%%%%%%%%%%%%%%%%#(//(#/,..,/(#%%%%%%%%%%%%%%#/*****///////////
-.,..,,,,,,,,,,,,,,,,,,,,,,,,,,*,,*******,,,(#%%%%%%%%#(*,,,....,/#%%%%%%%%%%%%%%%%%%%%%%%%%%%#(*,,,....,/(#%%%%%%%%%%%%%%#(*,**////////////
-.,..,,,,,,,,,...........,,,,,,*,********,,*(#%%%%%%%%%#(/*,,...,/#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(/*,,..,*/##%%%%%%%%%%%%%%%#(***////////////
-...,,,,,,,................,,*,**********,,/#%%%%%%%%%%%%#((////((#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##((///(#%%%%%%%%%%%%%%%%%%(/**////////////
- ..,,,,,,.................,,,**********,,*(#%%%%%%%%%%%%%%%%%%#%%%%%%%%#((///((#%%%%%%%%%%%%%%%%%%%%%#%%%%%%%%%%%%%%%%%%%%%#/**////////////
-.,,,,,,,,.................,,***********,,/(####%%%%%%%%%%%%%%%%%%%%%%%%#(/*,,,*(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(/*////////////
-.,***,,,,,,..............,,,**********,..,***//((##%%%%%%%%%%%%%%%%%%%%%%%##((##%%%%%%%%%%%%%%%%%%%%%%%%%##(((((((((###%%%%%#/**///////////
-.*****,,,,,,,,,,,,,,,,,,,*************,..,*******/(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##///*//////((#%%%%%#(**///////////
-.****************/******/***////*****,.,*///////**/#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(////////////(#%%%%%#/**//////////
-.***********************/////*******,..,*//////////(#%%%%%%%%%%%%%%%%%%%%##########%%%%%%%%%%%%%%%%%%%%#(///////////*/(#%%%%%#(***/////////
-.************************///********,..,*//////////#%%%%%%%%%%%%%%%%%%#(//*****///(((##%%%%%%%%%%%%%%%%#(///////////**/##%%%%##/***////////
-.***********************************,.,,***///////(#%%%%%%%%%%%%%%%%#(/*,,,*//((((////(#%%%%%%%%%%%%%%%#((////////////(#%%%%%%#(*********//
-,***********,,,*,,*,,**************,,,*//******//(#%%%%%%%%%%%%%%%%%#(*,,*/(((#####(((((#%%%%%%%%%%%%%%%##///////////(#%%%%%%%%#(***///////
-,*************,,**,,,************,,,,,/(##((((####%%%%%%%%%%%%%%%%%%%(/**/(((#((((#((//(#%%%%%%%%%%%%%%%%%#(((((((((##%%%%%%%%%%#/**///////
-,******************************,,,,,,,*(#%#%%%%%%%%%%%%%%%%%%%%%%%%%%#(**/((#(#(((#((//(#%%%%%%%%%%%%%%%%%%%%%%%#%#%%%%%%%%%%%%%#(**///////
-,*************,**************,****,,,,,/(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(/*/((((#((((///(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(/*///////
-,*************************************,*/#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##(////////////(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#/**/////*
-,******////****///////////////////////***/#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%####(((((((###%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(********
-.,*,****///////////////////////////////***/#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#(/*******
-.,,,,*****//////////////////////////*******(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%##(*******
-.,,,,,,***********/////////////////********/(#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(*******
-PIKA;
-
-		if($this->allGood) {
-
-			echo $pika;
-
-		}
-
-		$this->assertTrue(true);
 
 	}
 
