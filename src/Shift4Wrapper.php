@@ -142,8 +142,8 @@ class Shift4Wrapper
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> 'Madera Resident Portal',
-				'CompanyName' 		=> 'Madera Residential'
+				'InterfaceName' 	=> $this->interfaceName,
+				'CompanyName' 		=> $this->companyName
 			)
 		));
 
