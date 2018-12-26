@@ -1,6 +1,6 @@
 {
     "name": "primitivesocial/shift4wrapper",
-    "description": ":Wrapper for Shift4 API for Laravel",
+    "description": "Wrapper for Shift4 API for Laravel",
     "license": "MIT",
     "authors": [
         {
