@@ -58,8 +58,8 @@ class Transaction extends Shift4Wrapper
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> $this->interfaceName,
-				'CompanyName' 		=> $this->companyName,
+				'InterfaceName' 	=> 'Madera Resident Portal',
+				'CompanyName' 		=> 'Madera Residential',
 				'AccessToken'		=> $this->accessToken,
 				'Invoice'			=> $invoice
 			)
@@ -101,11 +101,15 @@ class Transaction extends Shift4Wrapper
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> $this->interfaceName,
-				'CompanyName' 		=> $this->companyName,
+				'InterfaceName' 	=> 'Madera Resident Portal',
+				'CompanyName' 		=> 'Madera Residential',
 				'AccessToken'		=> $this->accessToken,
 				'Invoice'			=> $invoice
 			)
+		));
+
+		$this->setApiOptions(array(
+			"RETURNEXPDATE"
 		));
 
 		$this->callMethod = 'DELETE';
@@ -356,6 +360,11 @@ class Transaction extends Shift4Wrapper
 
 	}
 
+	/**
+	 * Adds purchase Card
+	 * @param  [array] $purchaseCard [contains customerReference, destinationPostalCode, productDescriptors]
+	 * @return this
+	 */
 	public function purchaseCard($purchaseCard) {
 
 		$this->sendData['transaction']['purchaseCard'] = $purchaseCard;
@@ -363,6 +372,37 @@ class Transaction extends Shift4Wrapper
 		return $this;
 
 	}
+
+	public function purchaseCardCustomerReference($customerReference) {
+
+		if(!in_array('purchaseCard', $this->sendData['transaction'])) $this->sendData['transaction']['purchaseCard'] = array();
+
+		$this->sendData['transaction']['purchaseCard']['customerReference'] = $customerReference;
+
+		return $this;
+
+	}
+
+	public function purchaseCardDestinationPostalCode($destinationPostalCode) {
+
+		if(!in_array('purchaseCard', $this->sendData['transaction'])) $this->sendData['transaction']['purchaseCard'] = array();
+
+		$this->sendData['transaction']['purchaseCard']['destinationPostalCode'] = $destinationPostalCode;
+
+		return $this;
+
+	}
+
+	public function purchaseCardProductDescriptors($productDescriptors) {
+
+		if(!in_array('purchaseCard', $this->sendData['transaction'])) $this->sendData['transaction']['purchaseCard'] = array();
+
+		$this->sendData['transaction']['purchaseCard']['productDescriptors'] = $productDescriptors;
+
+		return $this;
+
+	}
+
 
 	// PRIVATE FUNCTIONS
 	private function initializeSendData() {

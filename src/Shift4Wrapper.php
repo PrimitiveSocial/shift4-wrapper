@@ -137,13 +137,13 @@ class Shift4Wrapper
 		// Set up Guzzle client
 		$client = new Client(array(
 			'base_uri' => $this->clientUrl,
-			// 'cert' => base_path() . '/shift4wrapper.pem',
+			// 'cert' => base_path() . '/shift4.pem',
 			'headers' => array(
 				'Content-Type' 		=> 'application/json',
 				'Accept'       		=> 'application/json',
 				'InterfaceVersion' 	=> '1.0',
-				'InterfaceName' 	=> $this->interfaceName,
-				'CompanyName' 		=> $this->companyName
+				'InterfaceName' 	=> 'Madera Resident Portal',
+				'CompanyName' 		=> 'Madera Residential'
 			)
 		));
 
