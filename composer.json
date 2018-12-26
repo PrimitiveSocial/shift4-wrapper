@@ -1,6 +1,6 @@
 {
     "name": "primitivesocial/shift4wrapper",
-    "description": ":description",
+    "description": ":Wrapper for Shift4 API for Laravel",
     "license": "license",
     "authors": [
         {
@@ -10,9 +10,10 @@
         }
     ],
     "homepage": "https://github.com/primitivesocial/shift4wrapper",
-    "keywords": ["Laravel", "Shift4Wrapper"],
+    "keywords": ["Laravel", "Shift4Wrapper", "Shift4", "I4GO"],
     "require": {
-        "illuminate/support": "~5"
+        "illuminate/support": "~5",
+        "guzzlehttp/guzzle": "^6.3"
     },
     "require-dev": {
         "phpunit/phpunit": "~7.0",
