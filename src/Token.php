@@ -18,7 +18,7 @@ class Token extends Shift4Wrapper
 
 		// I4GO specific stuff
 		// Set URL
-		$this->clientUrl = config('shift4.i4go_api');
+		$this->clientUrl = config('shift4wrapper.i4go_api');
 		$this->versionUri = '';
 		$this->callMethod = 'POST';
 		$this->uri = 'index.cfm';
